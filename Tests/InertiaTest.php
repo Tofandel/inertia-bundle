@@ -34,6 +34,15 @@ class InertiaTest extends TestCase
         $this->inertia = new Inertia('app.twig.html', $this->environment, $this->requestStack, $this->serializer);
     }
 
+    public function testServiceWiring() {
+        $kernel = new TestKernel('test', true);
+        $kernel->boot();
+        $container = $kernel->getContainer();
+
+        $inertia = $container->get('rompetomp_inertia.inertia');
+        $this->assertInstanceOf(Inertia::class, $inertia);
+    }
+
     public function testSharedSingle()
     {
         $this->inertia->share('app_name', 'Testing App 1');
