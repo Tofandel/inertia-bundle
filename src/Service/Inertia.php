@@ -3,20 +3,18 @@
 namespace Rompetomp\InertiaBundle\Service;
 
 use Closure;
+use GuzzleHttp\Promise\PromiseInterface\PromiseInterface;
 use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Resources\Json\ResourceResponse;
 use Illuminate\Support\Arr;
 use Rompetomp\InertiaBundle\LazyProp;
 use Rompetomp\InertiaBundle\Utils;
-use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\RouterInterface;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
-use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -48,7 +46,7 @@ class Inertia implements InertiaInterface
      * @param string|array|Arrayable $key
      * @param mixed|null $value
      */
-    public function share(string|array|Arrayable $key, $value = null): void
+    public function share(string|array|Arrayable $key, $value = null): self
     {
         if (is_array($key)) {
             $this->props = array_merge($this->props, $key);
@@ -57,6 +55,8 @@ class Inertia implements InertiaInterface
         } else {
             Arr::set($this->props, $key, $value);
         }
+
+        return $this;
     }
 
     public function getShared(string $key = null, mixed $default = null): mixed
@@ -253,11 +253,11 @@ class Inertia implements InertiaInterface
                 $value = call_user_func($value);
             }
 
-            if ($value instanceof \GuzzleHttp\Promise\PromiseInterface\PromiseInterface) {
+            if ($value instanceof PromiseInterface) {
                 $value = $value->wait();
             }
 
-            if ($value instanceof \Illuminate\Http\Resources\Json\ResourceResponse || $value instanceof \Illuminate\Http\Resources\Json\JsonResource) {
+            if ($value instanceof ResourceResponse || $value instanceof JsonResource) {
                 $value = $value->toResponse($request)->getData(true);
             }
 

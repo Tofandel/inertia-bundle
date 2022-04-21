@@ -2,6 +2,7 @@
 
 namespace Rompetomp\InertiaBundle\DependencyInjection;
 
+use Exception;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
@@ -19,7 +20,7 @@ class RompetompInertiaExtension extends ConfigurableExtension
     /**
      * Configures the passed container according to the merged configuration.
      *
-     * @throws \Exception
+     * @throws Exception
      */
     protected function loadInternal(array $mergedConfig, ContainerBuilder $container)
     {

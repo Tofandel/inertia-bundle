@@ -18,7 +18,7 @@ interface InertiaInterface
     /**
      * Adds global component properties for the templating system.
      */
-    public function share(string|array|Arrayable $key, mixed $value = null): void;
+    public function share(string|array|Arrayable $key, mixed $value = null): self;
 
     public function getShared(string $key = null, mixed $default = null): mixed;
 

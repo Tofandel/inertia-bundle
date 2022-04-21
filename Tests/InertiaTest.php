@@ -2,8 +2,14 @@
 
 namespace Rompetomp\InertiaBundle\Tests;
 
+use ArrayObject;
+use DateTime;
+use Mockery;
+use Mockery\LegacyMockInterface;
+use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
 use Rompetomp\InertiaBundle\Service\Inertia;
+use stdClass;
 use Symfony\Component\HttpFoundation\HeaderBag;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,20 +22,20 @@ use Twig\Environment;
 
 class InertiaTest extends TestCase
 {
-    /** @var \Rompetomp\InertiaBundle\Service\Inertia */
+    /** @var Inertia */
     private $inertia;
-    /** @var \Mockery\LegacyMockInterface|\Mockery\MockInterface|\Twig\Environment */
+    /** @var LegacyMockInterface|MockInterface|Environment */
     private $environment;
-    /** @var \Mockery\LegacyMockInterface|\Mockery\MockInterface|\Symfony\Component\HttpFoundation\RequestStack */
+    /** @var LegacyMockInterface|MockInterface|RequestStack */
     private $requestStack;
-    /** @var \Mockery\LegacyMockInterface|\Mockery\MockInterface|\Symfony\Component\Serializer\Serializer|null */
+    /** @var LegacyMockInterface|MockInterface|Serializer|null */
     private $serializer;
 
     public function setUp(): void
     {
         $this->serializer   = null;
-        $this->environment  = \Mockery::mock(Environment::class);
-        $this->requestStack = \Mockery::mock(RequestStack::class);
+        $this->environment  = Mockery::mock(Environment::class);
+        $this->requestStack = Mockery::mock(RequestStack::class);
 
         $this->inertia = new Inertia('app.twig.html', $this->environment, $this->requestStack, $this->serializer);
     }
@@ -84,7 +90,7 @@ class InertiaTest extends TestCase
 
     public function testRenderJSON()
     {
-        $mockRequest = \Mockery::mock(Request::class);
+        $mockRequest = Mockery::mock(Request::class);
         $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
         $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
         $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
@@ -98,7 +104,7 @@ class InertiaTest extends TestCase
 
     public function testRenderProps()
     {
-        $mockRequest = \Mockery::mock(Request::class);
+        $mockRequest = Mockery::mock(Request::class);
         $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
         $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
         $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
@@ -113,7 +119,7 @@ class InertiaTest extends TestCase
 
     public function testRenderSharedProps()
     {
-        $mockRequest = \Mockery::mock(Request::class);
+        $mockRequest = Mockery::mock(Request::class);
         $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
         $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
         $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
@@ -130,7 +136,7 @@ class InertiaTest extends TestCase
 
     public function testRenderClosureProps()
     {
-        $mockRequest = \Mockery::mock(Request::class);
+        $mockRequest = Mockery::mock(Request::class);
         $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
         $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
         $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
@@ -150,7 +156,7 @@ class InertiaTest extends TestCase
 
     public function testRenderDoc()
     {
-        $mockRequest = \Mockery::mock(Request::class);
+        $mockRequest = Mockery::mock(Request::class);
         $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
         $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
         $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
@@ -185,6 +191,50 @@ class InertiaTest extends TestCase
         );
     }
 
+    public function testLazy() {
+        $mockRequest = Mockery::mock(Request::class);
+        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
+        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
+        $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
+        $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
+
+        $this->environment->allows('render')->andReturn('<div>123</div>');
+
+
+        $called = false;
+        $response = $this->inertia->share([
+            'lazy' => $this->inertia->lazy(function () use (&$called) {
+                $called = true;
+                return 'lazy';
+            }),
+            'eager' => fn() => 'eager',
+            'normal' => 'normal'
+        ])->render('Dashboard');
+
+        $content = json_decode($response->getContent(), true)['props'];
+
+        $this->assertArrayHasKey('normal', $content);
+        $this->assertArrayHasKey('eager', $content);
+        $this->assertEquals('eager', $content['eager']);
+        $this->assertArrayNotHasKey('lazy', $content);
+        $this->assertFalse($called);
+
+        $mockRequest->headers->add([
+            'X-Inertia-Partial-Component' => 'Dashboard',
+            'X-Inertia-Partial-Data' => 'lazy',
+        ]);
+
+        $response = $this->inertia->render('Dashboard');
+
+        $content = json_decode($response->getContent(), true)['props'];
+
+        $this->assertArrayNotHasKey('normal', $content);
+        $this->assertArrayNotHasKey('eager', $content);
+        $this->assertArrayHasKey('lazy', $content);
+        $this->assertEquals('lazy', $content['lazy']);
+        $this->assertTrue($called);
+    }
+
     public function testContextSingle()
     {
         $this->inertia->context('groups', [ 'group1', 'group2' ]);
@@ -204,7 +254,7 @@ class InertiaTest extends TestCase
 
     public function testTypesArePreservedUsingJsonEncode()
     {
-        $mockRequest = \Mockery::mock(Request::class);
+        $mockRequest = Mockery::mock(Request::class);
         $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
         $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
         $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
@@ -217,7 +267,7 @@ class InertiaTest extends TestCase
 
     public function testTypesArePreservedUsingSerializer()
     {
-        $mockRequest = \Mockery::mock(Request::class);
+        $mockRequest = Mockery::mock(Request::class);
         $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
         $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
         $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
@@ -238,10 +288,10 @@ class InertiaTest extends TestCase
             'null'                  => null,
             'true'                  => true,
             'false'                 => false,
-            'object'                => new \DateTime(),
-            'empty_object'          => new \stdClass(),
-            'iterable_object'       => new \ArrayObject([1, 2, 3]),
-            'empty_iterable_object' => new \ArrayObject(),
+            'object'                => new DateTime(),
+            'empty_object'          => new stdClass(),
+            'iterable_object'       => new ArrayObject([1, 2, 3]),
+            'empty_iterable_object' => new ArrayObject(),
             'array'                 => [1, 2, 3],
             'empty_array'           => [],
             'associative_array'     => ['test' => 'test']
