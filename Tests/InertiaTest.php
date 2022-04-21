@@ -8,6 +8,7 @@ use Mockery;
 use Mockery\LegacyMockInterface;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
+use Rompetomp\InertiaBundle\LazyProp;
 use Rompetomp\InertiaBundle\Service\Inertia;
 use stdClass;
 use Symfony\Component\HttpFoundation\HeaderBag;
@@ -200,6 +201,8 @@ class InertiaTest extends TestCase
 
         $this->environment->allows('render')->andReturn('<div>123</div>');
 
+
+        $this->assertInstanceOf(LazyProp::class, $this->inertia->lazy(fn () => null));
 
         $called = false;
         $response = $this->inertia->share([

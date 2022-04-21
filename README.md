@@ -121,7 +121,7 @@ if (!Encore.isRuntimeEnvironmentConfigured()) {
 }
 
 Encore
-  .setOutputPath('public/build/'),
+  .setOutputPath('public/build/')
   .setPublicPath('/build')
   .enableReactPreset()
   .addAliases({
@@ -135,7 +135,7 @@ Encore
   .disableSingleRuntimeChunk()
   .configureBabel(() => {}, {
     useBuiltIns: 'usage',
-    corejs: 3
+    corejs: 3,
   })
   .enableSassLoader()
 
