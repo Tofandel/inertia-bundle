@@ -10,6 +10,7 @@ use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
 use Rompetomp\InertiaBundle\LazyProp;
 use Rompetomp\InertiaBundle\Service\Inertia;
+use Rompetomp\InertiaBundle\Service\InertiaInterface;
 use stdClass;
 use Symfony\Component\HttpFoundation\HeaderBag;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -46,7 +47,7 @@ class InertiaTest extends TestCase
         $kernel->boot();
         $container = $kernel->getContainer();
 
-        $inertia = $container->get('rompetomp_inertia.inertia');
+        $inertia = $container->get(InertiaInterface::class);
         $this->assertInstanceOf(Inertia::class, $inertia);
     }
 
