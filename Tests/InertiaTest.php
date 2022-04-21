@@ -57,7 +57,7 @@ class InertiaTest extends TestCase
 
     public function testVersion()
     {
-        $this->assertNull($this->inertia->getVersion());
+        $this->assertEquals("", $this->inertia->getVersion());
         $this->inertia->version('1.2.3');
         $this->assertEquals($this->inertia->getVersion(), '1.2.3');
     }
@@ -76,7 +76,8 @@ class InertiaTest extends TestCase
     public function testRenderJSON()
     {
         $mockRequest = \Mockery::mock(Request::class);
-        $mockRequest->shouldReceive('getRequestUri')->andSet('headers', new HeaderBag(['X-Inertia' => true]));
+        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
+        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
         $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
         $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
 
@@ -89,7 +90,8 @@ class InertiaTest extends TestCase
     public function testRenderProps()
     {
         $mockRequest = \Mockery::mock(Request::class);
-        $mockRequest->shouldReceive('getRequestUri')->andSet('headers', new HeaderBag(['X-Inertia' => true]));
+        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
+        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
         $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
         $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
 
@@ -103,7 +105,8 @@ class InertiaTest extends TestCase
     public function testRenderSharedProps()
     {
         $mockRequest = \Mockery::mock(Request::class);
-        $mockRequest->shouldReceive('getRequestUri')->andSet('headers', new HeaderBag(['X-Inertia' => true]));
+        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
+        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
         $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
         $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
 
@@ -119,7 +122,8 @@ class InertiaTest extends TestCase
     public function testRenderClosureProps()
     {
         $mockRequest = \Mockery::mock(Request::class);
-        $mockRequest->shouldReceive('getRequestUri')->andSet('headers', new HeaderBag(['X-Inertia' => true]));
+        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
+        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
         $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
         $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
 
@@ -138,7 +142,8 @@ class InertiaTest extends TestCase
     public function testRenderDoc()
     {
         $mockRequest = \Mockery::mock(Request::class);
-        $mockRequest->shouldReceive('getRequestUri')->andSet('headers', new HeaderBag(['X-Inertia' => false]));
+        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
+        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
         $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
         $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
 
@@ -191,7 +196,8 @@ class InertiaTest extends TestCase
     public function testTypesArePreservedUsingJsonEncode()
     {
         $mockRequest = \Mockery::mock(Request::class);
-        $mockRequest->shouldReceive('getRequestUri')->andSet('headers', new HeaderBag(['X-Inertia' => true]));
+        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
+        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
         $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
         $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
 
@@ -203,7 +209,8 @@ class InertiaTest extends TestCase
     public function testTypesArePreservedUsingSerializer()
     {
         $mockRequest = \Mockery::mock(Request::class);
-        $mockRequest->shouldReceive('getRequestUri')->andSet('headers', new HeaderBag(['X-Inertia' => true]));
+        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
+        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
         $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
         $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
 

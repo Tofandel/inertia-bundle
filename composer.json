@@ -1,5 +1,5 @@
 {
-  "name": "rompetomp/inertia-bundle",
+  "name": "tofandel/inertia-bundle",
   "description": "A Symfony adapter for Inertia.js",
   "type": "symfony-bundle",
   "license": "MIT",
@@ -7,25 +7,35 @@
     {
       "name": "Hannes Vermeire",
       "email": "hannesvermeire@gmail.com"
+    },
+    {
+      "name": "Adrien Foulon",
+      "email": "tofandel@tukan.hu"
     }
   ],
   "autoload": {
     "psr-4": {
-      "Rompetomp\\InertiaBundle\\": ""
+      "Rompetomp\\InertiaBundle\\": "src"
+    }
+  },
+  "autoload_dev": {
+    "psr-4": {
+      "Rompetomp\\InertiaBundle\\Tests\\": "Tests"
     }
   },
   "require": {
-    "php": "^7.3|^8",
+    "php": "^8",
     "symfony/config": "^4.4|^5.1.7|^6.0",
     "symfony/dependency-injection": "^4.4|^5.1.7|^6.0",
     "symfony/http-kernel": "^4.4|^5.1.7|^6.0",
-    "twig/twig": "^2.12|^3.0"
+    "twig/twig": "^2.12|^3.0",
+    "illuminate/support": "^9.9"
   },
   "require-dev": {
-    "mockery/mockery": "^1.2",
-    "symfony/phpunit-bridge": "^4.4|^5.1.7|^6.0",
-    "symfony/property-access": "^5.1|^6.0",
-    "symfony/serializer": "^5.1|^6.0",
-    "symfony/var-dumper": "^4.4|^5.1.7|^6.0"
+    "mockery/mockery": "^1.5",
+    "symfony/phpunit-bridge": "^6.0",
+    "symfony/property-access": "^6.0",
+    "symfony/serializer": "^6.0",
+    "symfony/var-dumper": "^6.0"
   }
 }

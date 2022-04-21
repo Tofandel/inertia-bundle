@@ -3,7 +3,7 @@
 [![StyleCI](https://github.styleci.io/repos/201484253/shield?style=flat)](https://github.styleci.io/repos/201484253)
 
 This is a Inertia.js server-side adapter based on [inertia-laravel](https://github.com/inertiajs/inertia-laravel), but
-for Symfony 5.
+for Symfony 6.
 
 ## Installation
 First, make sure you have the twig, encore and serializer recipe:
@@ -36,7 +36,7 @@ include your assets, as well as the `inertia(page)` function
     {% endblock %}
 </head>
 <body>
-{{ inertia(page) }}
+{{ inertia() }}
 {% block javascripts %}
     {{ encore_entry_script_tags('app') }}
 {% endblock %}
@@ -44,10 +44,10 @@ include your assets, as well as the `inertia(page)` function
 </html>
 ```
 
-The `inertia(page)` function is a helper function for creating our base `div`. It includes a `data-page` attribute which
+The `inertia()` function is a helper function for creating our base `div`. It includes a `data-page` attribute which
 contains the initial page information. This is what it looks like:
 ```php
-<div id="app" data-page="<?php echo htmlspecialchars(json_encode($page)); ?>"></div>
+<div id="app" data-page="<?php echo htmlspecialchars($serialized_page); ?>"></div>
 ```
 
 If you'd like a different root view, you can change it by creating a `config/packages/rompetomp_inertia.yaml` file

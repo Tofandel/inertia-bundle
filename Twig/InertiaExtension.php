@@ -15,13 +15,13 @@ use Twig\TwigFunction;
  */
 class InertiaExtension extends AbstractExtension
 {
-    public function getFunctions()
+    public function getFunctions(): array
     {
-        return [new TwigFunction('inertia', [$this, 'inertiaFunction'])];
+        return [new TwigFunction('inertia', [$this, 'inertiaFunction'], ['needs_context' => true])];
     }
 
-    public function inertiaFunction($page)
+    public function inertiaFunction(array $context): Markup
     {
-        return new Markup('<div id="app" data-page="'.htmlspecialchars(json_encode($page)).'"></div>', 'UTF-8');
+        return new Markup('<div id="app" data-page="' . htmlspecialchars($context['_serialized_page']) . '"></div>', 'UTF-8');
     }
 }
