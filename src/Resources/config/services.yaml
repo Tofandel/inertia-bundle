@@ -6,6 +6,7 @@ services:
       $engine: '@twig'
       $requestStack: '@request_stack'
       $serializer: '@?serializer'
+      $package: '@?assets.packages'
   Rompetomp\InertiaBundle\Service\InertiaInterface:
     alias: rompetomp_inertia.inertia
     public: true

@@ -7,8 +7,8 @@ use Symfony\Component\HttpFoundation\Request;
 abstract class Utils
 {
 
-    public static function isInertiaRequest(Request $request): bool
+    public static function isInertiaRequest(?Request $request): bool
     {
-        return $request?->headers?->has('X-Inertia');
+        return $request?->headers?->has('X-Inertia') ?? false;
     }
 }

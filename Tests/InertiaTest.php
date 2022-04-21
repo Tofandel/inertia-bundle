@@ -13,6 +13,7 @@ use Rompetomp\InertiaBundle\LazyProp;
 use Rompetomp\InertiaBundle\Service\Inertia;
 use Rompetomp\InertiaBundle\Service\InertiaInterface;
 use stdClass;
+use Symfony\Component\Asset\Packages;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\HeaderBag;
@@ -21,6 +22,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
@@ -41,14 +43,15 @@ class InertiaTest extends TestCase
 
     public function setUp(): void
     {
-        $this->serializer   = null;
-        $this->environment  = Mockery::mock(Environment::class);
+        $this->serializer = null;
+        $this->environment = Mockery::mock(Environment::class);
         $this->requestStack = Mockery::mock(RequestStack::class);
 
         $this->inertia = new Inertia('app.twig.html', $this->environment, $this->requestStack, $this->serializer);
     }
 
-    public function testServiceWiring() {
+    public function testServiceWiring()
+    {
         $kernel = new TestKernel('test', true);
         $kernel->boot();
         $container = $kernel->getContainer();
@@ -72,7 +75,7 @@ class InertiaTest extends TestCase
         $this->assertEquals(
             [
                 'app_version' => '2.0.0',
-                'app_name'    => 'Testing App 2',
+                'app_name' => 'Testing App 2',
             ],
             $this->inertia->getShared()
         );
@@ -96,62 +99,83 @@ class InertiaTest extends TestCase
         $this->assertEquals('other-root.twig.html', $this->inertia->getRootView());
     }
 
-    protected function makeDispatcher() {
+    protected function makeDispatcher(?Kernel $kernel = null)
+    {
         $dispatcher = new EventDispatcher();
-        $listener = new InertiaListener(new ParameterBag(['assets.json_manifest_path' => __DIR__ . '/manifest.json']), $this->inertia, true);
+        $listener = new InertiaListener(new ParameterBag(['assets.json_manifest_path' => __DIR__ . '/manifest.json']), $kernel ? $kernel->getContainer()->get(InertiaInterface::class) : $this->inertia, true);
         $dispatcher->addListener('onKernelRequest', [$listener, 'onKernelRequest']);
         $dispatcher->addListener('onKernelResponse', [$listener, 'onKernelResponse']);
+
+        if (isset($kernel)) {
+            /** @var RequestStack $requestStack */
+            $requestStack = $kernel->getContainer()->get('request_stack');
+            $requestStack->push($this->requestStack->getCurrentRequest());
+        }
 
         return $dispatcher;
     }
 
-    protected function makeRequest(bool $inertia = true, bool $front = false, string $partial_component = null, ?array $partial_data = null) {
+    protected function makeRequest(bool $inertia = true, bool $front = false, string $partial_component = null, ?array $partial_data = null)
+    {
         $mockRequest = Mockery::mock(Request::class);
 
         $headers = [];
         switch (true) {
             case !!$partial_data:
                 $headers += ['X-Inertia-Partial-Data' => join(',', $partial_data)];
-                // no break
+            // no break
             case !!$partial_component:
                 $partial_component = explode('|', $partial_component);
                 $headers += ['X-Inertia-Partial-Component' => $partial_component[0]];
                 $headers += ['X-Inertia-Version' => $partial_component[1] ?? ''];
-                // no break
+            // no break
             case $inertia:
                 $headers += ['X-Inertia' => true];
         }
 
         $mockRequest->headers = new HeaderBag($headers);
+        $mockRequest->allows('getSchemeAndHttpHost')->andReturn('https://example.test');
+        $mockRequest->allows('isXmlHttpRequest')->andReturn(!$front);
         $mockRequest->allows('getMethod')->andReturns($front ? 'GET' : 'POST');
         $mockRequest->allows('getBaseUrl')->andReturns('/foo');
         $mockRequest->allows('getRequestUri')->andReturns('https://example.test/foo');
-        $mockRequest->allows('getUriForPath')->andReturnUsing(fn ($path) => 'https://example.test/foo/' . $path);
+        $mockRequest->allows('getUriForPath')->andReturnUsing(fn($path) => 'https://example.test/foo/' . $path);
         $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
 
         return $mockRequest;
     }
 
-    public function testEventListener() : void
+    public function testEventListener(): void
     {
         $kernel = Mockery::mock(Kernel::class);
         $request = $this->makeRequest();
         $event = new RequestEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST);
         $this->makeDispatcher()->dispatch($event, 'onKernelRequest');
 
-        $this->assertEquals(md5_file(__DIR__.'/manifest.json'), $this->inertia->getVersion());
         $this->assertNull($event->getResponse());
+
+        $response = new Response();
+        $event = new ResponseEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST, $response);
+        $this->makeDispatcher()->dispatch($event, 'onKernelResponse');
+
+        $this->assertInstanceOf(Response::class, $event->getResponse());
     }
 
-    public function testEventListenerDiffVersion() : void
+    public function testEventListenerDiffVersion(): void
     {
-        $kernel = Mockery::mock(Kernel::class);
+
+        $kernel = new TestKernel('test', true);
+        $kernel->boot();
+
         $request = $this->makeRequest(true, true, 'Dashboard|some-other-version');
 
         $event = new RequestEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST);
-        $this->makeDispatcher()->dispatch($event, 'onKernelRequest');
+        $this->makeDispatcher($kernel)->dispatch($event, 'onKernelRequest');
 
-        $this->assertInstanceOf(Response::class, $event->getResponse());
+        $this->assertEquals(
+            md5(json_encode(json_decode(file_get_contents(__DIR__ . '/manifest.json')))),
+            $kernel->getContainer()->get(InertiaInterface::class)->getVersion()
+        );
         $this->assertEquals(409, $event->getResponse()->getStatusCode());
         $this->assertEquals('https://example.test/foo/', $event->getResponse()->headers->get('X-Inertia-Location'));
     }
@@ -164,7 +188,7 @@ class InertiaTest extends TestCase
 
         $response = $this->inertia->render('Dashboard', ['test' => 123]);
         $this->assertInstanceOf(JsonResponse::class, $response);
-        $data     = json_decode($response->getContent(), true);
+        $data = json_decode($response->getContent(), true);
         $this->assertEquals(['test' => 123], $data['props']);
     }
 
@@ -177,7 +201,7 @@ class InertiaTest extends TestCase
         $this->inertia->share('app_version', '2.0.0');
 
         $response = $this->inertia->render('Dashboard', ['test' => 123]);
-        $data     = json_decode($response->getContent(), true);
+        $data = json_decode($response->getContent(), true);
         $this->assertEquals(['test' => 123, 'app_name' => 'Testing App 3', 'app_version' => '2.0.0'], $data['props']);
     }
 
@@ -224,16 +248,17 @@ class InertiaTest extends TestCase
         $this->assertEquals(
             [
                 'app_version' => '2.0.0',
-                'app_name'    => 'Testing App 2',
+                'app_name' => 'Testing App 2',
             ],
             $this->inertia->getViewData()
         );
     }
 
-    public function testLazy() {
+    public function testLazy()
+    {
         $this->makeRequest();
 
-        $this->assertInstanceOf(LazyProp::class, $this->inertia->lazy(fn () => null));
+        $this->assertInstanceOf(LazyProp::class, $this->inertia->lazy(fn() => null));
 
         $called = false;
         $response = $this->inertia->share([
@@ -242,7 +267,7 @@ class InertiaTest extends TestCase
                 return 'lazy';
             }),
             'eager' => fn() => 'eager',
-            'normal' => 'normal'
+            'normal' => 'normal',
         ])->render('Dashboard');
 
         $content = json_decode($response->getContent(), true)['props'];
@@ -255,7 +280,8 @@ class InertiaTest extends TestCase
 
     }
 
-    public function testLazyWithPartial() {
+    public function testLazyWithPartial()
+    {
         $called = false;
 
         $this->makeRequest(true, false, 'Dashboard', ['lazy']);
@@ -266,7 +292,7 @@ class InertiaTest extends TestCase
                 return 'lazy';
             }),
             'eager' => fn() => 'eager',
-            'normal' => 'normal'
+            'normal' => 'normal',
         ])->render('Dashboard');
 
         $content = json_decode($response->getContent(), true)['props'];
@@ -280,16 +306,16 @@ class InertiaTest extends TestCase
 
     public function testContextSingle()
     {
-        $this->inertia->context('groups', [ 'group1', 'group2' ]);
-        $this->assertEquals([ 'group1', 'group2' ], $this->inertia->getContext('groups'));
+        $this->inertia->context('groups', ['group1', 'group2']);
+        $this->assertEquals(['group1', 'group2'], $this->inertia->getContext('groups'));
     }
 
     public function testContextMultiple()
     {
-        $this->inertia->context('groups', [ 'group1', 'group2' ]);
+        $this->inertia->context('groups', ['group1', 'group2']);
         $this->assertEquals(
             [
-                'groups'    =>  [ 'group1', 'group2' ],
+                'groups' => ['group1', 'group2'],
             ],
             $this->inertia->getContext()
         );
@@ -317,24 +343,24 @@ class InertiaTest extends TestCase
     private function innerTestTypesArePreserved($usingSerializer = false)
     {
         $props = [
-            'integer'               => 123,
-            'float'                 => 1.23,
-            'string'                => 'test',
-            'null'                  => null,
-            'true'                  => true,
-            'false'                 => false,
-            'object'                => new DateTime(),
-            'empty_object'          => new stdClass(),
-            'iterable_object'       => new ArrayObject([1, 2, 3]),
+            'integer' => 123,
+            'float' => 1.23,
+            'string' => 'test',
+            'null' => null,
+            'true' => true,
+            'false' => false,
+            'object' => new DateTime(),
+            'empty_object' => new stdClass(),
+            'iterable_object' => new ArrayObject([1, 2, 3]),
             'empty_iterable_object' => new ArrayObject(),
-            'array'                 => [1, 2, 3],
-            'empty_array'           => [],
-            'associative_array'     => ['test' => 'test']
+            'array' => [1, 2, 3],
+            'empty_array' => [],
+            'associative_array' => ['test' => 'test'],
         ];
 
-        $response      = $this->inertia->render('Dashboard', $props);
-        $data          = json_decode($response->getContent(), false);
-        $responseProps = (array) $data->props;
+        $response = $this->inertia->render('Dashboard', $props);
+        $data = json_decode($response->getContent(), false);
+        $responseProps = (array)$data->props;
 
         $this->assertIsInt($responseProps['integer']);
         $this->assertIsFloat($responseProps['float']);

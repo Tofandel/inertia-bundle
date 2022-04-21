@@ -7,8 +7,13 @@ use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceResponse;
 use Illuminate\Support\Arr;
+use ReflectionProperty;
 use Rompetomp\InertiaBundle\LazyProp;
 use Rompetomp\InertiaBundle\Utils;
+use Symfony\Component\Asset\Package;
+use Symfony\Component\Asset\Packages;
+use Symfony\Component\Asset\PathPackage;
+use Symfony\Component\Asset\VersionStrategy\JsonManifestVersionStrategy;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -37,14 +42,38 @@ class Inertia implements InertiaInterface
         protected string               $rootView,
         protected Environment          $engine,
         protected RequestStack         $requestStack,
-        protected ?SerializerInterface $serializer = null)
+        protected ?SerializerInterface $serializer = null,
+        protected ?Packages $package = null)
     {
+        if (isset($this->package)) {
+            $this->version = function () {
+                /** @var PathPackage $package */
+                $package = $this->package->getPackage();
+                if ($package instanceof Package) {
+                    $rp = new ReflectionProperty(Package::class, 'versionStrategy');
+                    $rp->setAccessible(true);
+                    $strategy = $rp->getValue($package);
+                    if ($strategy instanceof JsonManifestVersionStrategy) {
+                        $strategy->getVersion('');
+                        $rp = new ReflectionProperty($strategy, 'manifestData');
+                        $rp->setAccessible(true);
+                        $version = md5(json_encode($rp->getValue($strategy)));
+                    }
+                }
+                if (empty($version)) {
+                    $version = explode('?', $this->package->getVersion('build/app.js') ?: $this->package->getVersion('build/main.js'));
+
+                    if (count($version) === 1) {
+                        $version = md5($version[0]);
+                    } else {
+                        $version = array_pop($version);
+                    }
+                }
+                return $version;
+            };
+        }
     }
 
-    /**
-     * @param string|array|Arrayable $key
-     * @param mixed|null $value
-     */
     public function share(string|array|Arrayable $key, $value = null): self
     {
         if (is_array($key)) {
@@ -158,7 +187,7 @@ class Inertia implements InertiaInterface
     {
         $viewData = array_merge($this->viewData, $viewData);
         $props = array_merge($this->props, $props);
-        
+
         $request = $this->requestStack->getCurrentRequest();
 
         $only = array_filter(explode(',', $request->headers->get('X-Inertia-Partial-Data', '')));
@@ -166,7 +195,7 @@ class Inertia implements InertiaInterface
         $props = ($only && $request->headers->get('X-Inertia-Partial-Component') === $component)
             ? Arr::only($props, $only)
             : array_filter($props, static function ($prop) {
-                return ! ($prop instanceof LazyProp);
+                return !($prop instanceof LazyProp);
             });
 
         $props = $this->resolvePropertyInstances($props, $request);
@@ -174,7 +203,7 @@ class Inertia implements InertiaInterface
         $page = [
             'component' => $component,
             'props' => $props,
-            'url' => $request->getBaseUrl().$request->getRequestUri(),
+            'url' => $request->getBaseUrl() . $request->getRequestUri(),
             'version' => $this->getVersion(),
         ];
 
@@ -216,9 +245,8 @@ class Inertia implements InertiaInterface
      *
      * @see https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/AJAX_Security_Cheat_Sheet.md#always-return-json-with-an-object-on-the-outside
      *
-     * @param array $context
      *
-     * @return array @return array returns a decoded array of the previously JSON-encoded data, so it can safely be given to {@see JsonResponse}
+     * @return string returns a json encoded string of the data, so it can safely be given to {@see JsonResponse}
      */
     private function serialize(array $page): string
     {
@@ -240,9 +268,9 @@ class Inertia implements InertiaInterface
     /**
      * Resolve all necessary class instances in the given props.
      *
-     * @param  array  $props
-     * @param  Request  $request
-     * @param  bool  $unpackDotProps
+     * @param array $props
+     * @param Request $request
+     * @param bool $unpackDotProps
      * @return array
      */
     public function resolvePropertyInstances(array $props, Request $request, bool $unpackDotProps = true): array

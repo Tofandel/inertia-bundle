@@ -1,0 +1,7 @@
+framework:
+  assets:
+    json_manifest_path: '%kernel.project_dir%/Tests/manifest.json'
+
+webpack_encore:
+  # The path where Encore is building the assets - i.e. Encore.setOutputPath()
+  output_path: '%kernel.project_dir%/public/build'

@@ -3,6 +3,7 @@
 namespace Rompetomp\InertiaBundle\EventListener;
 
 use Rompetomp\InertiaBundle\Service\InertiaInterface;
+use Symfony\Component\Asset\VersionStrategy\VersionStrategyInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -23,20 +24,6 @@ class InertiaListener
     }
 
     /**
-     * Determines the current asset version.
-     *
-     * @see https://inertiajs.com/asset-versioning
-     */
-    public function version(): ?string
-    {
-        if ($this->parameterBag->has('assets.json_manifest_path') && file_exists($manifest = $this->parameterBag->get('assets.json_manifest_path'))) {
-            return md5_file($manifest);
-        }
-
-        return null;
-    }
-
-    /**
      * Defines the props that are shared by default.
      *
      * @see https://inertiajs.com/shared-data
@@ -54,7 +41,6 @@ class InertiaListener
         }
 
         $request = $event->getRequest();
-        $this->inertia->version([$this, 'version']);
 
         $this->inertia->share($this->share($request));
 
@@ -80,7 +66,7 @@ class InertiaListener
         }
 
 
-        if ($response->getStatusCode() === 302 && in_array($request->method(), ['PUT', 'PATCH', 'DELETE'])) {
+        if ($response->getStatusCode() === 302 && in_array($request->getMethod(), ['PUT', 'PATCH', 'DELETE'])) {
             $response->setStatusCode(303);
         }
     }

@@ -8,6 +8,7 @@ use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Bundle\TwigBundle\TwigBundle;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\HttpKernel\Kernel;
+use Symfony\WebpackEncoreBundle\WebpackEncoreBundle;
 
 class TestKernel extends Kernel
 {
@@ -19,6 +20,7 @@ class TestKernel extends Kernel
             new FrameworkBundle(),
             new TwigBundle(),
             new RompetompInertiaBundle(),
+            new WebpackEncoreBundle(),
         ];
     }
 
@@ -27,8 +29,9 @@ class TestKernel extends Kernel
         return parent::getKernelParameters() + ['kernel.secret' => '$3cret'];
     }
 
+
     public function registerContainerConfiguration(LoaderInterface $loader)
     {
-        // TODO: Implement registerContainerConfiguration() method.
+        $loader->load(__DIR__.'/config.yaml');
     }
 }

@@ -33,6 +33,7 @@
     "illuminate/support": "^9.9"
   },
   "require-dev": {
+    "symfony/webpack-encore-bundle": "^1.14",
     "symfony/framework-bundle": "^6.0",
     "symfony/twig-bundle": "^6.0",
     "mockery/mockery": "^1.5",
