@@ -2,7 +2,6 @@
 
 namespace Rompetomp\InertiaBundle\Service;
 
-use Closure;
 use GuzzleHttp\Promise\PromiseInterface\PromiseInterface;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -29,7 +28,7 @@ class Inertia implements InertiaInterface
     protected array $viewData = [];
     protected array $context = [];
 
-    protected Closure|string|null $version = null;
+    protected $version = null;
 
     /**
      * Inertia constructor.
@@ -106,7 +105,7 @@ class Inertia implements InertiaInterface
         return $this;
     }
 
-    public function version(string|Closure|null $version): self
+    public function version(string|callable|null $version): self
     {
         $this->version = $version;
 
@@ -115,7 +114,7 @@ class Inertia implements InertiaInterface
 
     public function getVersion(): string
     {
-        $version = $this->version instanceof Closure
+        $version = is_callable($this->version)
             ? call_user_func($this->version)
             : $this->version;
 
@@ -249,7 +248,7 @@ class Inertia implements InertiaInterface
     public function resolvePropertyInstances(array $props, Request $request, bool $unpackDotProps = true): array
     {
         foreach ($props as $key => $value) {
-            if ($value instanceof Closure || $value instanceof LazyProp) {
+            if (is_callable($value) || $value instanceof LazyProp) {
                 $value = call_user_func($value);
             }
 

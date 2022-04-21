@@ -8,15 +8,21 @@ use Mockery;
 use Mockery\LegacyMockInterface;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
+use Rompetomp\InertiaBundle\EventListener\InertiaListener;
 use Rompetomp\InertiaBundle\LazyProp;
 use Rompetomp\InertiaBundle\Service\Inertia;
 use Rompetomp\InertiaBundle\Service\InertiaInterface;
 use stdClass;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\HeaderBag;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpKernel\HttpKernelInterface;
+use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
@@ -90,42 +96,81 @@ class InertiaTest extends TestCase
         $this->assertEquals('other-root.twig.html', $this->inertia->getRootView());
     }
 
-    public function testRenderJSON()
-    {
+    protected function makeDispatcher() {
+        $dispatcher = new EventDispatcher();
+        $listener = new InertiaListener(new ParameterBag(['assets.json_manifest_path' => __DIR__ . '/manifest.json']), $this->inertia, true);
+        $dispatcher->addListener('onKernelRequest', [$listener, 'onKernelRequest']);
+        $dispatcher->addListener('onKernelResponse', [$listener, 'onKernelResponse']);
+
+        return $dispatcher;
+    }
+
+    protected function makeRequest(bool $inertia = true, bool $front = false, string $partial_component = null, ?array $partial_data = null) {
         $mockRequest = Mockery::mock(Request::class);
-        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
-        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
-        $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
+
+        $headers = [];
+        switch (true) {
+            case !!$partial_data:
+                $headers += ['X-Inertia-Partial-Data' => join(',', $partial_data)];
+                // no break
+            case !!$partial_component:
+                $partial_component = explode('|', $partial_component);
+                $headers += ['X-Inertia-Partial-Component' => $partial_component[0]];
+                $headers += ['X-Inertia-Version' => $partial_component[1] ?? ''];
+                // no break
+            case $inertia:
+                $headers += ['X-Inertia' => true];
+        }
+
+        $mockRequest->headers = new HeaderBag($headers);
+        $mockRequest->allows('getMethod')->andReturns($front ? 'GET' : 'POST');
+        $mockRequest->allows('getBaseUrl')->andReturns('/foo');
+        $mockRequest->allows('getRequestUri')->andReturns('https://example.test/foo');
+        $mockRequest->allows('getUriForPath')->andReturnUsing(fn ($path) => 'https://example.test/foo/' . $path);
         $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
 
-        $this->inertia = new Inertia('app.twig.html', $this->environment, $this->requestStack, $this->serializer);
+        return $mockRequest;
+    }
 
-        $response = $this->inertia->render('Dashboard');
-        $this->assertInstanceOf(JsonResponse::class, $response);
+    public function testEventListener() : void
+    {
+        $kernel = Mockery::mock(Kernel::class);
+        $request = $this->makeRequest();
+        $event = new RequestEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST);
+        $this->makeDispatcher()->dispatch($event, 'onKernelRequest');
+
+        $this->assertEquals(md5_file(__DIR__.'/manifest.json'), $this->inertia->getVersion());
+        $this->assertNull($event->getResponse());
+    }
+
+    public function testEventListenerDiffVersion() : void
+    {
+        $kernel = Mockery::mock(Kernel::class);
+        $request = $this->makeRequest(true, true, 'Dashboard|some-other-version');
+
+        $event = new RequestEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST);
+        $this->makeDispatcher()->dispatch($event, 'onKernelRequest');
+
+        $this->assertInstanceOf(Response::class, $event->getResponse());
+        $this->assertEquals(409, $event->getResponse()->getStatusCode());
+        $this->assertEquals('https://example.test/foo/', $event->getResponse()->headers->get('X-Inertia-Location'));
     }
 
     public function testRenderProps()
     {
-        $mockRequest = Mockery::mock(Request::class);
-        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
-        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
-        $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
-        $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
+        $this->makeRequest();
 
         $this->inertia = new Inertia('app.twig.html', $this->environment, $this->requestStack, $this->serializer);
 
         $response = $this->inertia->render('Dashboard', ['test' => 123]);
+        $this->assertInstanceOf(JsonResponse::class, $response);
         $data     = json_decode($response->getContent(), true);
         $this->assertEquals(['test' => 123], $data['props']);
     }
 
     public function testRenderSharedProps()
     {
-        $mockRequest = Mockery::mock(Request::class);
-        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
-        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
-        $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
-        $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
+        $this->makeRequest();
 
         $this->inertia = new Inertia('app.twig.html', $this->environment, $this->requestStack, $this->serializer);
         $this->inertia->share('app_name', 'Testing App 3');
@@ -138,11 +183,7 @@ class InertiaTest extends TestCase
 
     public function testRenderClosureProps()
     {
-        $mockRequest = Mockery::mock(Request::class);
-        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
-        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
-        $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
-        $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
+        $this->makeRequest();
 
         $this->inertia = new Inertia('app.twig.html', $this->environment, $this->requestStack, $this->serializer);
 
@@ -158,11 +199,7 @@ class InertiaTest extends TestCase
 
     public function testRenderDoc()
     {
-        $mockRequest = Mockery::mock(Request::class);
-        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
-        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
-        $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
-        $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
+        $this->makeRequest();
 
         $this->environment->allows('render')->andReturn('<div>123</div>');
 
@@ -194,14 +231,7 @@ class InertiaTest extends TestCase
     }
 
     public function testLazy() {
-        $mockRequest = Mockery::mock(Request::class);
-        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
-        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
-        $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
-        $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
-
-        $this->environment->allows('render')->andReturn('<div>123</div>');
-
+        $this->makeRequest();
 
         $this->assertInstanceOf(LazyProp::class, $this->inertia->lazy(fn () => null));
 
@@ -223,12 +253,21 @@ class InertiaTest extends TestCase
         $this->assertArrayNotHasKey('lazy', $content);
         $this->assertFalse($called);
 
-        $mockRequest->headers->add([
-            'X-Inertia-Partial-Component' => 'Dashboard',
-            'X-Inertia-Partial-Data' => 'lazy',
-        ]);
+    }
 
-        $response = $this->inertia->render('Dashboard');
+    public function testLazyWithPartial() {
+        $called = false;
+
+        $this->makeRequest(true, false, 'Dashboard', ['lazy']);
+
+        $response = $this->inertia->share([
+            'lazy' => $this->inertia->lazy(function () use (&$called) {
+                $called = true;
+                return 'lazy';
+            }),
+            'eager' => fn() => 'eager',
+            'normal' => 'normal'
+        ])->render('Dashboard');
 
         $content = json_decode($response->getContent(), true)['props'];
 
@@ -258,11 +297,7 @@ class InertiaTest extends TestCase
 
     public function testTypesArePreservedUsingJsonEncode()
     {
-        $mockRequest = Mockery::mock(Request::class);
-        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
-        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
-        $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
-        $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
+        $this->makeRequest();
 
         $this->inertia = new Inertia('app.twig.html', $this->environment, $this->requestStack, $this->serializer);
 
@@ -271,11 +306,7 @@ class InertiaTest extends TestCase
 
     public function testTypesArePreservedUsingSerializer()
     {
-        $mockRequest = Mockery::mock(Request::class);
-        $mockRequest->headers = new HeaderBag(['X-Inertia' => true]);
-        $mockRequest->shouldReceive('getBaseUrl', 'getRequestUri');
-        $mockRequest->allows()->getRequestUri()->andReturns('https://example.test');
-        $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
+        $this->makeRequest();
 
         $this->serializer = new Serializer([new ObjectNormalizer()], [new JsonEncoder()]);
         $this->inertia = new Inertia('app.twig.html', $this->environment, $this->requestStack, $this->serializer);

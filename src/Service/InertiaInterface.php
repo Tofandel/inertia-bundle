@@ -2,7 +2,6 @@
 
 namespace Rompetomp\InertiaBundle\Service;
 
-use Closure;
 use Illuminate\Contracts\Support\Arrayable;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -29,7 +28,7 @@ interface InertiaInterface
 
     public function getViewData(string $key = null, mixed $default = null): mixed;
 
-    public function version(string|Closure|null $version): self;
+    public function version(string|callable|null $version): self;
 
     /**
      * Adds a context for the serializer.
