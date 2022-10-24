@@ -8,13 +8,10 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class HttpGateway implements GatewayInterface
 {
-    private $inertia;
-    private $httpClient;
-
-    public function __construct(HttpClientInterface $httpClient, InertiaInterface $inertia)
+    public function __construct(
+        private HttpClientInterface $httpClient,
+        private InertiaInterface $inertia)
     {
-        $this->inertia = $inertia;
-        $this->httpClient = $httpClient;
     }
 
     /**
@@ -34,7 +31,7 @@ class HttpGateway implements GatewayInterface
                     'body' => json_encode($page),
                 ]
             );
-        } catch (Exception $e) {
+        } catch (Exception) {
             return null;
         }
 
