@@ -5,7 +5,6 @@ namespace Rompetomp\InertiaBundle\Tests;
 use ArrayObject;
 use DateTime;
 use Mockery;
-use Mockery\LegacyMockInterface;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
 use Rompetomp\InertiaBundle\EventListener\InertiaListener;
@@ -13,7 +12,6 @@ use Rompetomp\InertiaBundle\LazyProp;
 use Rompetomp\InertiaBundle\Service\Inertia;
 use Rompetomp\InertiaBundle\Service\InertiaInterface;
 use stdClass;
-use Symfony\Component\Asset\Packages;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\HeaderBag;
@@ -32,14 +30,10 @@ use Twig\Environment;
 
 class InertiaTest extends TestCase
 {
-    /** @var Inertia */
-    private $inertia;
-    /** @var LegacyMockInterface|MockInterface|Environment */
-    private $environment;
-    /** @var LegacyMockInterface|MockInterface|RequestStack */
-    private $requestStack;
-    /** @var LegacyMockInterface|MockInterface|Serializer|null */
-    private $serializer;
+    private Inertia $inertia;
+    private MockInterface|Environment $environment;
+    private MockInterface|RequestStack $requestStack;
+    private MockInterface|Serializer|null $serializer;
 
     public function setUp(): void
     {

@@ -8,6 +8,7 @@ use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceResponse;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Traits\Macroable;
 use ReflectionProperty;
 use Rompetomp\InertiaBundle\LazyProp;
 use Rompetomp\InertiaBundle\Utils;
@@ -25,7 +26,6 @@ use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
 use Twig\Environment;
-use Illuminate\Support\Traits\Macroable;
 
 class Inertia implements InertiaInterface
 {

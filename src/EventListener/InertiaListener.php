@@ -2,6 +2,8 @@
 
 namespace Rompetomp\InertiaBundle\EventListener;
 
+use Illuminate\Contracts\Support\MessageBag;
+use Illuminate\Support\ViewErrorBag;
 use Rompetomp\InertiaBundle\Service\InertiaInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -30,7 +32,7 @@ class InertiaListener
     public function share(Request $request): array
     {
         return [
-            'errors' => fn () => $this->resolveValidationErrors($request),
+            'errors' => fn () => self::resolveValidationErrors($request, true),
         ];
     }
     public function onKernelRequest(RequestEvent $event)
@@ -97,13 +99,18 @@ class InertiaListener
      * Resolves and prepares validation errors in such
      * a way that they are easier to use client-side.
      */
-    public function resolveValidationErrors(Request $request): object
+    public static function resolveValidationErrors(Request $request, $flush = false): object
     {
         if (! $request->getSession()->has('errors')) {
             return (object) [];
         }
 
-        return (object) collect($request->getSession()->get('errors')->getBags())->map(function ($bag) {
+        /** @var ViewErrorBag $errors */
+        $errors = $request->getSession()->get('errors');
+        if ($flush) {
+            $request->getSession()->remove('errors');
+        }
+        return (object) collect($errors->getBags())->map(function (MessageBag $bag) {
             return (object) collect($bag->messages())->map(function ($errors) {
                 return $errors[0];
             })->toArray();
