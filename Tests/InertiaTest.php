@@ -260,10 +260,10 @@ class InertiaTest extends TestCase
 
         $this->assertInstanceOf(LazyProp::class, $this->inertia->lazy(fn() => null));
 
-        $called = false;
+        $called = 0;
         $response = $this->inertia->share([
             'lazy' => $this->inertia->lazy(function () use (&$called) {
-                $called = true;
+                $called++;
                 return 'lazy';
             }),
             'eager' => fn() => 'eager',
@@ -276,19 +276,18 @@ class InertiaTest extends TestCase
         $this->assertArrayHasKey('eager', $content);
         $this->assertEquals('eager', $content['eager']);
         $this->assertArrayNotHasKey('lazy', $content);
-        $this->assertFalse($called);
-
+        $this->assertEquals(0, $called);
     }
 
     public function testLazyWithPartial()
     {
-        $called = false;
+        $called = 0;
 
         $this->makeRequest(true, false, 'Dashboard', ['lazy']);
 
         $response = $this->inertia->share([
             'lazy' => $this->inertia->lazy(function () use (&$called) {
-                $called = true;
+                $called++;
                 return 'lazy';
             }),
             'eager' => fn() => 'eager',
@@ -301,7 +300,7 @@ class InertiaTest extends TestCase
         $this->assertArrayNotHasKey('eager', $content);
         $this->assertArrayHasKey('lazy', $content);
         $this->assertEquals('lazy', $content['lazy']);
-        $this->assertTrue($called);
+        $this->assertEquals(1, $called);
     }
 
     public function testContextSingle()

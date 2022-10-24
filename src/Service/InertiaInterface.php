@@ -3,6 +3,7 @@
 namespace Rompetomp\InertiaBundle\Service;
 
 use Illuminate\Contracts\Support\Arrayable;
+use Rompetomp\InertiaBundle\LazyProp;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -43,7 +44,22 @@ interface InertiaInterface
 
     public function getRootView(): string;
 
-    public function lazy(callable $callback): mixed;
+    /**
+     * Check if it using ssr.
+     */
+    public function isSsr(): bool;
+
+    /**
+     * Set the ssr url where it will fetch its content.
+     */
+    public function setSsrUrl(string $url): void;
+
+    /**
+     * Get the ssr url where it will fetch its content.
+     */
+    public function getSsrUrl(): string;
+
+    public function lazy(callable|string|array $callback): LazyProp;
 
     /**
      * @param string $component component name

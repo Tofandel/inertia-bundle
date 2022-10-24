@@ -3,7 +3,6 @@
 namespace Rompetomp\InertiaBundle\EventListener;
 
 use Rompetomp\InertiaBundle\Service\InertiaInterface;
-use Symfony\Component\Asset\VersionStrategy\VersionStrategyInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;

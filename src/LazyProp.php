@@ -6,7 +6,7 @@ class LazyProp
 {
     protected $callback;
 
-    public function __construct(callable $callback)
+    public function __construct(callable|string|array $callback)
     {
         $this->callback = $callback;
     }

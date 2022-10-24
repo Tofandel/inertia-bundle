@@ -8,12 +8,12 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class HttpGateway implements GatewayInterface
 {
-    private $interia;
+    private $inertia;
     private $httpClient;
 
     public function __construct(HttpClientInterface $httpClient, InertiaInterface $inertia)
     {
-        $this->interia = $inertia;
+        $this->inertia = $inertia;
         $this->httpClient = $httpClient;
     }
 
@@ -25,7 +25,7 @@ class HttpGateway implements GatewayInterface
         try {
             $response = $this->httpClient->request(
                 'POST',
-                $this->interia->getSsrUrl(),
+                $this->inertia->getSsrUrl(),
                 [
                     'headers' => [
                         'Content-Type: application/json',

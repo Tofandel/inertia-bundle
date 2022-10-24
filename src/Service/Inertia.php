@@ -2,6 +2,7 @@
 
 namespace Rompetomp\InertiaBundle\Service;
 
+use Closure;
 use GuzzleHttp\Promise\PromiseInterface\PromiseInterface;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -14,6 +15,7 @@ use Symfony\Component\Asset\Package;
 use Symfony\Component\Asset\Packages;
 use Symfony\Component\Asset\PathPackage;
 use Symfony\Component\Asset\VersionStrategy\JsonManifestVersionStrategy;
+use Symfony\Component\DependencyInjection\ContainerAwareTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -28,12 +30,19 @@ use Illuminate\Support\Traits\Macroable;
 class Inertia implements InertiaInterface
 {
     use Macroable;
+    use ContainerAwareTrait;
+
 
     protected array $props = [];
     protected array $viewData = [];
     protected array $context = [];
 
-    protected $version = null;
+    protected bool $useSsr = false;
+
+    protected string $ssrUrl = '';
+
+
+    protected string|Closure|null $version = null;
 
     /**
      * Inertia constructor.
@@ -101,17 +110,6 @@ class Inertia implements InertiaInterface
         $this->props = [];
     }
 
-    public function context(array|string $key, mixed $value = null): self
-    {
-        if (is_array($key)) {
-            $this->context = array_merge($this->props, $key);
-        } else {
-            $this->context[$key] = $value;
-        }
-
-        return $this;
-    }
-
     public function withViewData(array|string $key, mixed $value = null): self
     {
         if (is_array($key)) {
@@ -134,6 +132,35 @@ class Inertia implements InertiaInterface
         return $this;
     }
 
+    public function getViewData(string $key = null, mixed $default = null): mixed
+    {
+        if ($key) {
+            return Arr::get($this->viewData, $key, $default);
+        }
+
+        return $this->viewData;
+    }
+
+    public function context(array|string $key, mixed $value = null): self
+    {
+        if (is_array($key)) {
+            $this->context = array_merge($this->props, $key);
+        } else {
+            $this->context[$key] = $value;
+        }
+
+        return $this;
+    }
+
+    public function getContext(string $key = null, mixed $default = null): mixed
+    {
+        if ($key) {
+            return Arr::get($this->context, $key, $default);
+        }
+
+        return $this->context;
+    }
+
     public function version(string|callable|null $version): self
     {
         $this->version = $version;
@@ -150,29 +177,6 @@ class Inertia implements InertiaInterface
         return (string)$version;
     }
 
-    public function lazy(callable $callback): LazyProp
-    {
-        return new LazyProp($callback);
-    }
-
-    public function getViewData(string $key = null, mixed $default = null): mixed
-    {
-        if ($key) {
-            return Arr::get($this->viewData, $key, $default);
-        }
-
-        return $this->viewData;
-    }
-
-    public function getContext(string $key = null, mixed $default = null): mixed
-    {
-        if ($key) {
-            return Arr::get($this->context, $key, $default);
-        }
-
-        return $this->context;
-    }
-
     public function setRootView(string $rootView): void
     {
         $this->rootView = $rootView;
@@ -181,6 +185,26 @@ class Inertia implements InertiaInterface
     public function getRootView(): string
     {
         return $this->rootView;
+    }
+
+    public function useSsr(bool $useSsr): void
+    {
+        $this->useSsr = $useSsr;
+    }
+
+    public function isSsr(): bool
+    {
+        return $this->useSsr;
+    }
+
+    public function setSsrUrl(string $url): void
+    {
+        $this->ssrUrl = $url;
+    }
+
+    public function getSsrUrl(): string
+    {
+        return $this->ssrUrl;
     }
 
     public function render(string $component, array $props = [], array $viewData = []): Response
@@ -207,7 +231,7 @@ class Inertia implements InertiaInterface
             'version' => $this->getVersion(),
         ];
 
-        if (Utils::isInertiaRequest($request)) {
+        if ($this->isInertiaRequest()) {
             return new JsonResponse($this->serialize($page), 200, [
                 'Vary' => 'Accept',
                 'X-Inertia' => 'true',
@@ -239,7 +263,26 @@ class Inertia implements InertiaInterface
         return new RedirectResponse($url);
     }
 
+    public function lazy(callable|string|array $callback): LazyProp
+    {
+        if (is_string($callback)) {
+            $callback = explode('::', $callback, 2);
+        }
 
+        if (is_array($callback)) {
+            [$name, $action] = array_pad($callback, 2, null);
+            $useContainer = is_string($name) && $this->container->has($name);
+            if ($useContainer && !is_null($action)) {
+                return new LazyProp([$this->container->get($name), $action]);
+            }
+
+            if ($useContainer && is_null($action)) {
+                return new LazyProp($this->container->get($name));
+            }
+        }
+
+        return new LazyProp($callback);
+    }
     /**
      * Serializes the given objects with the given context if the Symfony Serializer is available. If not, uses `json_encode`.
      *
@@ -257,6 +300,7 @@ class Inertia implements InertiaInterface
                     return null;
                 },
                 AbstractObjectNormalizer::PRESERVE_EMPTY_OBJECTS => true,
+                AbstractObjectNormalizer::ENABLE_MAX_DEPTH => true,
             ], $this->context));
         } else {
             $json = json_encode($page);
@@ -276,7 +320,7 @@ class Inertia implements InertiaInterface
     public function resolvePropertyInstances(array $props, Request $request, bool $unpackDotProps = true): array
     {
         foreach ($props as $key => $value) {
-            if (is_callable($value) || $value instanceof LazyProp) {
+            if ($value instanceof Closure || $value instanceof LazyProp) {
                 $value = call_user_func($value);
             }
 
