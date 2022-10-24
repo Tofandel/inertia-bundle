@@ -28,10 +28,10 @@ include your assets, as well as the `inertia(page)` function
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}Welcome!{% endblock %}</title>
     {% block stylesheets %}
         {{ encore_entry_link_tags('app') }}
     {% endblock %}
+    {{ inertiaHead(page) }}
 </head>
 <body>
 {{ inertia() }}
@@ -52,7 +52,7 @@ If you'd like a different root view, you can change it by creating a `config/pac
 and including this config:
 ```yaml
 rompetomp_inertia:
-  root_view: 'name.twig.html'
+  root_view: 'name.html.twig'
 ```
 
 ## Set up the frontend adapter
@@ -272,5 +272,120 @@ Like in Laravel, you can also pass a version to the Inertia services by calling
 $inertia->version($version);
 ```
 
+## Lazy Prop
+
+It's more efficient to use lazy data evaluation server-side you are using partial reloads.
+
+To use lazy data you need to use `Rompetomp\InertiaBundle\Service\Inertia::lazy`
+
+Sample usage:
+```php
+<?php
+namespace App\Controller;
+
+use Rompetomp\InertiaBundle\Service\InertiaInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+
+class DashboardController extends AbstractController
+{
+    public function index(InertiaInterface $inertia)
+    {
+        return $inertia->render('Dashboard', [
+            // using array
+            'usingArray' => $inertia->lazy(['SomeClass', 'someMethod']),
+            // using string
+            'usingString' => $inertia->lazy('SomeClass::someMethod'),
+            // using callable
+            'usingCallable' => $inertia->lazy(function () { retrun [...] }),
+        ]);
+    }
+}
+```
+
+The `lazy` method can accept callable, array and string
+When using string or array, the service will try to check if it is existing service in container if not
+it will just proceed to call the function
+
+## Server-side rendering
+
+For frontend configuration just follow the document https://inertiajs.com/server-side-rendering#setting-up-ssr
+
+### Setting up Encore / webpack
+
+To run the webpack properly install `webpack-node-externals`
+```shell
+npm install webpack-node-externals
+```
+
+Next we will create a new file namely `webpack.ssr.config.js` this is almost the same with
+your `webpack.config.js`. Remember that you need to keep this both config.
+
+```shell
+touch webpack.ssr.mix.js
+```
+
+Here is an example file for `webpack.ssr.config.js`
+```js
+const Encore = require('@symfony/webpack-encore')
+const webpackNodeExternals = require('webpack-node-externals')
+const path = require('path')
+
+if (!Encore.isRuntimeEnvironmentConfigured()) {
+    Encore.configureRuntimeEnvironment(process.env.NODE_ENV || 'dev')
+}
+
+Encore
+    .setOutputPath('public/build-ssr/')
+    .setPublicPath('/build-ssr')
+    .enableVueLoader(() => {}, { version: 3 })
+    .addEntry('ssr', './assets/ssr.js')
+    .cleanupOutputBeforeBuild()
+    .enableSourceMaps(!Encore.isProduction())
+    .enableVersioning(Encore.isProduction())
+    .enableSassLoader()
+
+const config = Encore.getWebpackConfig();
+config.target = 'node';
+config.externals = [webpackNodeExternals()];
+
+module.exports = config
+```
+
+### Enabling SSR
+
+To enable the ssr you need to add a configuration for your package `config/packages/rompetomp_inertia.yaml` file
+
+```yaml
+rompetomp_inertia:
+  ssr:
+    enabled: true
+    url: 'http://127.0.0.1:13714/render'
+```
+
+### Building your application
+
+You now have two build processes you need to run—one for your client-side bundle,
+and another for your server-side bundle:
+
+```shell
+encore build
+encore build -- -c ./webpack.ssr.config.js
+```
+
+The build folder for the ssr will be located in `public/build-ssr/ssr.js`.
+You can change the path by changing the output path (setOutputPath) in your `./webpack.ssr.config.js`
+
+### Running the Node.js Service
+
+To run the ssr service you will need to run it via node.
+
+```shell
+node public/build-ssr/ssr.js
+```
+
+This will be available in `http://127.0.0.1:13714` where this is the path we need to put in our `ssr.url`
+
 ## Projects using this bundle
 - [Ping CRM on Symfony](https://github.com/aleksblendwerk/pingcrm-symfony) - The official Inertia.js demo app, ported to Symfony
+- [Symfony + Inertia + Vuejs Template](https://github.com/cydrickn/symfony-intertia) - Github template repository that uses Symfony, Webpack/Encore, Inertia and Vuejs
+- [Symfony + Vite + Inertia + Vuejs Template](https://github.com/cydrickn/sviv) - Github template repository uses Symfony, Vite, Inertia and Vuejs
