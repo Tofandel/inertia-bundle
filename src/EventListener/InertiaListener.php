@@ -99,10 +99,10 @@ class InertiaListener
      * Resolves and prepares validation errors in such
      * a way that they are easier to use client-side.
      */
-    public static function resolveValidationErrors(Request $request, $flush = false): object
+    public static function resolveValidationErrors(Request $request, $flush = false): array
     {
         if (! $request->getSession()->has('errors')) {
-            return (object) [];
+            return [];
         }
 
         /** @var ViewErrorBag $errors */
@@ -110,8 +110,8 @@ class InertiaListener
         if ($flush) {
             $request->getSession()->remove('errors');
         }
-        return (object) collect($errors->getBags())->map(function (MessageBag $bag) {
-            return (object) collect($bag->messages())->map(function ($errors) {
+        return collect($errors->getBags())->map(function (MessageBag $bag) {
+            return collect($bag->messages())->map(function ($errors) {
                 return $errors[0];
             })->toArray();
         })->pipe(function ($bags) use ($request) {

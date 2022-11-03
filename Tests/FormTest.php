@@ -31,16 +31,16 @@ class FormTest extends TypeTestCase
 
         $this->assertFalse($res);
 
-        $errors = InertiaListener::resolveValidationErrors($request);
+        $errors = InertiaListener::resolveValidationErrors($request, true);
 
-        $this->assertEquals((object)[
+        $this->assertEquals([
             "test_form.last_name" => "This value should not be blank.",
             "test_form.first_name" => "This value is too short. It should have 10 characters or more.",
             "test_form.emails.1" => "This value is not a valid email address.",
         ], $errors);
 
         $errors = InertiaListener::resolveValidationErrors($request);
-        $this->assertEquals((object)[], $errors);
+        $this->assertEquals([], $errors);
     }
 
     protected function getExtensions()
