@@ -2,16 +2,13 @@
 
 namespace Rompetomp\InertiaBundle\Tests;
 
-use ArrayObject;
-use DateTime;
-use Mockery;
 use Mockery\MockInterface;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Rompetomp\InertiaBundle\EventListener\InertiaListener;
 use Rompetomp\InertiaBundle\LazyProp;
 use Rompetomp\InertiaBundle\Service\Inertia;
 use Rompetomp\InertiaBundle\Service\InertiaInterface;
-use stdClass;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\HeaderBag;
@@ -31,19 +28,45 @@ use Twig\Environment;
 class InertiaTest extends TestCase
 {
     private Inertia $inertia;
+
     private MockInterface|Environment $environment;
+
     private MockInterface|RequestStack $requestStack;
+
     private MockInterface|Serializer|null $serializer;
 
-    public function setUp(): void
+    protected function setUp(): void
     {
         $this->serializer = null;
-        $this->environment = Mockery::mock(Environment::class);
-        $this->requestStack = Mockery::mock(RequestStack::class);
+        $this->environment = \Mockery::mock(Environment::class);
+        $this->requestStack = \Mockery::mock(RequestStack::class);
 
         $this->inertia = new Inertia('app.twig.html', $this->environment, $this->requestStack, $this->serializer);
     }
 
+    public function tearDown(): void
+    {
+        parent::tearDown();
+
+        $this->restoreExceptionHandler();
+    }
+
+    protected function restoreExceptionHandler(): void
+    {
+        while (true) {
+            $previousHandler = set_exception_handler(static fn () => null);
+
+            restore_exception_handler();
+
+            if (null === $previousHandler) {
+                break;
+            }
+
+            restore_exception_handler();
+        }
+    }
+
+    #[Test]
     public function testServiceWiring()
     {
         $kernel = new TestKernel('test', true);
@@ -54,6 +77,7 @@ class InertiaTest extends TestCase
         $this->assertInstanceOf(Inertia::class, $inertia);
     }
 
+    #[Test]
     public function testSharedSingle()
     {
         $this->inertia->share('app_name', 'Testing App 1');
@@ -62,6 +86,7 @@ class InertiaTest extends TestCase
         $this->assertEquals('1.0.0', $this->inertia->getShared('app_version'));
     }
 
+    #[Test]
     public function testSharedMultiple()
     {
         $this->inertia->share('app_name', 'Testing App 2');
@@ -75,18 +100,21 @@ class InertiaTest extends TestCase
         );
     }
 
+    #[Test]
     public function testVersion()
     {
-        $this->assertEquals("", $this->inertia->getVersion());
+        $this->assertEquals('', $this->inertia->getVersion());
         $this->inertia->version('1.2.3');
         $this->assertEquals($this->inertia->getVersion(), '1.2.3');
     }
 
+    #[Test]
     public function testRootView()
     {
         $this->assertEquals('app.twig.html', $this->inertia->getRootView());
     }
 
+    #[Test]
     public function testSetRootView()
     {
         $this->inertia->setRootView('other-root.twig.html');
@@ -96,7 +124,7 @@ class InertiaTest extends TestCase
     protected function makeDispatcher(?Kernel $kernel = null)
     {
         $dispatcher = new EventDispatcher();
-        $listener = new InertiaListener(new ParameterBag(['assets.json_manifest_path' => __DIR__ . '/manifest.json']), $kernel ? $kernel->getContainer()->get(InertiaInterface::class) : $this->inertia, true);
+        $listener = new InertiaListener(new ParameterBag(['assets.json_manifest_path' => __DIR__.'/manifest.json']), $kernel ? $kernel->getContainer()->get(InertiaInterface::class) : $this->inertia, true);
         $dispatcher->addListener('onKernelRequest', [$listener, 'onKernelRequest']);
         $dispatcher->addListener('onKernelResponse', [$listener, 'onKernelResponse']);
 
@@ -109,20 +137,20 @@ class InertiaTest extends TestCase
         return $dispatcher;
     }
 
-    protected function makeRequest(bool $inertia = true, bool $front = false, string $partial_component = null, ?array $partial_data = null)
+    protected function makeRequest(bool $inertia = true, bool $front = false, ?string $partial_component = null, ?array $partial_data = null)
     {
-        $mockRequest = Mockery::mock(Request::class);
+        $mockRequest = \Mockery::mock(Request::class);
 
         $headers = [];
         switch (true) {
-            case !!$partial_data:
-                $headers += ['X-Inertia-Partial-Data' => join(',', $partial_data)];
-            // no break
-            case !!$partial_component:
+            case (bool) $partial_data:
+                $headers += ['X-Inertia-Partial-Data' => implode(',', $partial_data)];
+                // no break
+            case (bool) $partial_component:
                 $partial_component = explode('|', $partial_component);
                 $headers += ['X-Inertia-Partial-Component' => $partial_component[0]];
                 $headers += ['X-Inertia-Version' => $partial_component[1] ?? ''];
-            // no break
+                // no break
             case $inertia:
                 $headers += ['X-Inertia' => true];
         }
@@ -133,15 +161,16 @@ class InertiaTest extends TestCase
         $mockRequest->allows('getMethod')->andReturns($front ? 'GET' : 'POST');
         $mockRequest->allows('getBaseUrl')->andReturns('/foo');
         $mockRequest->allows('getRequestUri')->andReturns('https://example.test/foo');
-        $mockRequest->allows('getUriForPath')->andReturnUsing(fn($path) => 'https://example.test/foo/' . $path);
+        $mockRequest->allows('getUriForPath')->andReturnUsing(fn ($path) => 'https://example.test/foo/'.$path);
         $this->requestStack->allows()->getCurrentRequest()->andReturns($mockRequest);
 
         return $mockRequest;
     }
 
+    #[Test]
     public function testEventListener(): void
     {
-        $kernel = Mockery::mock(Kernel::class);
+        $kernel = \Mockery::mock(Kernel::class);
         $request = $this->makeRequest();
         $event = new RequestEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST);
         $this->makeDispatcher()->dispatch($event, 'onKernelRequest');
@@ -155,9 +184,9 @@ class InertiaTest extends TestCase
         $this->assertInstanceOf(Response::class, $event->getResponse());
     }
 
+    #[Test]
     public function testEventListenerDiffVersion(): void
     {
-
         $kernel = new TestKernel('test', true);
         $kernel->boot();
 
@@ -167,13 +196,14 @@ class InertiaTest extends TestCase
         $this->makeDispatcher($kernel)->dispatch($event, 'onKernelRequest');
 
         $this->assertEquals(
-            md5(json_encode(json_decode(file_get_contents(__DIR__ . '/manifest.json')))),
+            md5(json_encode(json_decode(file_get_contents(__DIR__.'/manifest.json')))),
             $kernel->getContainer()->get(InertiaInterface::class)->getVersion()
         );
         $this->assertEquals(409, $event->getResponse()->getStatusCode());
         $this->assertEquals('https://example.test/foo/', $event->getResponse()->headers->get('X-Inertia-Location'));
     }
 
+    #[Test]
     public function testRenderProps()
     {
         $this->makeRequest();
@@ -186,6 +216,7 @@ class InertiaTest extends TestCase
         $this->assertEquals(['test' => 123], $data['props']);
     }
 
+    #[Test]
     public function testRenderSharedProps()
     {
         $this->makeRequest();
@@ -199,6 +230,7 @@ class InertiaTest extends TestCase
         $this->assertEquals(['test' => 123, 'app_name' => 'Testing App 3', 'app_version' => '2.0.0'], $data['props']);
     }
 
+    #[Test]
     public function testRenderClosureProps()
     {
         $this->makeRequest();
@@ -215,6 +247,7 @@ class InertiaTest extends TestCase
         );
     }
 
+    #[Test]
     public function testRenderDoc()
     {
         $this->makeRequest();
@@ -227,6 +260,7 @@ class InertiaTest extends TestCase
         $this->assertInstanceOf(Response::class, $response);
     }
 
+    #[Test]
     public function testViewDataSingle()
     {
         $this->inertia->viewData('app_name', 'Testing App 1');
@@ -235,6 +269,7 @@ class InertiaTest extends TestCase
         $this->assertEquals('1.0.0', $this->inertia->getViewData('app_version'));
     }
 
+    #[Test]
     public function testViewDataMultiple()
     {
         $this->inertia->viewData('app_name', 'Testing App 2');
@@ -248,19 +283,21 @@ class InertiaTest extends TestCase
         );
     }
 
+    #[Test]
     public function testLazy()
     {
         $this->makeRequest();
 
-        $this->assertInstanceOf(LazyProp::class, $this->inertia->lazy(fn() => null));
+        $this->assertInstanceOf(LazyProp::class, $this->inertia->lazy(fn () => null));
 
         $called = 0;
         $response = $this->inertia->share([
             'lazy' => $this->inertia->lazy(function () use (&$called) {
-                $called++;
+                ++$called;
+
                 return 'lazy';
             }),
-            'eager' => fn() => 'eager',
+            'eager' => fn () => 'eager',
             'normal' => 'normal',
         ])->render('Dashboard');
 
@@ -273,6 +310,7 @@ class InertiaTest extends TestCase
         $this->assertEquals(0, $called);
     }
 
+    #[Test]
     public function testLazyWithPartial()
     {
         $called = 0;
@@ -281,10 +319,11 @@ class InertiaTest extends TestCase
 
         $response = $this->inertia->share([
             'lazy' => $this->inertia->lazy(function () use (&$called) {
-                $called++;
+                ++$called;
+
                 return 'lazy';
             }),
-            'eager' => fn() => 'eager',
+            'eager' => fn () => 'eager',
             'normal' => 'normal',
         ])->render('Dashboard');
 
@@ -297,12 +336,14 @@ class InertiaTest extends TestCase
         $this->assertEquals(1, $called);
     }
 
+    #[Test]
     public function testContextSingle()
     {
         $this->inertia->context('groups', ['group1', 'group2']);
         $this->assertEquals(['group1', 'group2'], $this->inertia->getContext('groups'));
     }
 
+    #[Test]
     public function testContextMultiple()
     {
         $this->inertia->context('groups', ['group1', 'group2']);
@@ -314,6 +355,7 @@ class InertiaTest extends TestCase
         );
     }
 
+    #[Test]
     public function testTypesArePreservedUsingJsonEncode()
     {
         $this->makeRequest();
@@ -323,6 +365,7 @@ class InertiaTest extends TestCase
         $this->innerTestTypesArePreserved(false);
     }
 
+    #[Test]
     public function testTypesArePreservedUsingSerializer()
     {
         $this->makeRequest();
@@ -342,10 +385,10 @@ class InertiaTest extends TestCase
             'null' => null,
             'true' => true,
             'false' => false,
-            'object' => new DateTime(),
-            'empty_object' => new stdClass(),
-            'iterable_object' => new ArrayObject([1, 2, 3]),
-            'empty_iterable_object' => new ArrayObject(),
+            'object' => new \DateTime(),
+            'empty_object' => new \stdClass(),
+            'iterable_object' => new \ArrayObject([1, 2, 3]),
+            'empty_iterable_object' => new \ArrayObject(),
             'array' => [1, 2, 3],
             'empty_array' => [],
             'associative_array' => ['test' => 'test'],
@@ -353,7 +396,7 @@ class InertiaTest extends TestCase
 
         $response = $this->inertia->render('Dashboard', $props);
         $data = json_decode($response->getContent(), false);
-        $responseProps = (array)$data->props;
+        $responseProps = (array) $data->props;
 
         $this->assertIsInt($responseProps['integer']);
         $this->assertIsFloat($responseProps['float']);

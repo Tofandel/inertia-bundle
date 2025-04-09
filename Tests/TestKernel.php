@@ -29,7 +29,6 @@ class TestKernel extends Kernel
         return parent::getKernelParameters() + ['kernel.secret' => '$3cret'];
     }
 
-
     public function registerContainerConfiguration(LoaderInterface $loader)
     {
         $loader->load(__DIR__.'/config.yaml');

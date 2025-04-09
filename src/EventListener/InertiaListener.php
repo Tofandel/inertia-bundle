@@ -35,7 +35,8 @@ class InertiaListener
             'errors' => fn () => self::resolveValidationErrors($request, true),
         ];
     }
-    public function onKernelRequest(RequestEvent $event)
+
+    public function onKernelRequest(RequestEvent $event): void
     {
         if (!$this->inertia->isInertiaRequest()) {
             return;
@@ -45,12 +46,12 @@ class InertiaListener
 
         $this->inertia->share($this->share($request));
 
-        if ($request->getMethod() === 'GET' && $request->headers->get('X-Inertia-Version') !== $this->inertia->getVersion()) {
+        if ('GET' === $request->getMethod() && $request->headers->get('X-Inertia-Version') !== $this->inertia->getVersion()) {
             $this->onVersionChange($event);
         }
     }
 
-    public function onKernelResponse(ResponseEvent $event)
+    public function onKernelResponse(ResponseEvent $event): void
     {
         if (!$this->inertia->isInertiaRequest()) {
             return;
@@ -66,12 +67,10 @@ class InertiaListener
             $response->headers->set('Symfony-Debug-Toolbar-Replace', 1);
         }
 
-
-        if ($response->getStatusCode() === 302 && in_array($request->getMethod(), ['PUT', 'PATCH', 'DELETE'])) {
+        if (302 === $response->getStatusCode() && in_array($request->getMethod(), ['PUT', 'PATCH', 'DELETE'])) {
             $response->setStatusCode(303);
         }
     }
-
 
     /**
      * Determines what to do when an Inertia action returned with no response.
@@ -81,6 +80,7 @@ class InertiaListener
     {
         $request = $event->getRequest();
         $event->setResponse($response = new RedirectResponse($request->headers->get('referer', $request->getSchemeAndHttpHost())));
+
         return $response;
     }
 
@@ -91,9 +91,9 @@ class InertiaListener
     public function onVersionChange(RequestEvent $event): Response
     {
         $event->setResponse($response = $this->inertia->location($event->getRequest()->getUriForPath('')));
+
         return $response;
     }
-
 
     /**
      * Resolves and prepares validation errors in such
@@ -101,7 +101,7 @@ class InertiaListener
      */
     public static function resolveValidationErrors(Request $request, $flush = false): array
     {
-        if (! $request->getSession()->has('errors')) {
+        if (!$request->getSession()->has('errors')) {
             return [];
         }
 
@@ -110,20 +110,15 @@ class InertiaListener
         if ($flush) {
             $request->getSession()->remove('errors');
         }
-        return collect($errors->getBags())->map(function (MessageBag $bag) {
-            return collect($bag->messages())->map(function ($errors) {
-                return $errors[0];
-            })->toArray();
-        })->pipe(function ($bags) use ($request) {
-            if ($bags->has('default') && $request->headers->has('x-inertia-error-bag')) {
-                return [$request->headers->get('x-inertia-error-bag') => $bags->get('default')];
-            }
 
-            if ($bags->has('default')) {
-                return $bags->get('default');
-            }
+        $bags = array_map(fn (MessageBag $bag) => array_map(fn ($errors) => $errors[0], $bag->messages()), $errors->getBags());
 
-            return $bags->toArray();
-        });
+        if (isset($bags['default']) && $request->headers->has('x-inertia-error-bag')) {
+            return [$request->headers->get('x-inertia-error-bag') => $bags['default']];
+        } elseif (isset($bags['default'])) {
+            return $bags['default'];
+        }
+
+        return $bags;
     }
 }

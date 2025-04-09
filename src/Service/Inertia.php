@@ -2,21 +2,18 @@
 
 namespace Rompetomp\InertiaBundle\Service;
 
-use Closure;
 use GuzzleHttp\Promise\PromiseInterface\PromiseInterface;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceResponse;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Traits\Macroable;
-use ReflectionProperty;
 use Rompetomp\InertiaBundle\LazyProp;
 use Rompetomp\InertiaBundle\Utils;
 use Symfony\Component\Asset\Package;
 use Symfony\Component\Asset\Packages;
 use Symfony\Component\Asset\PathPackage;
 use Symfony\Component\Asset\VersionStrategy\JsonManifestVersionStrategy;
-use Symfony\Component\DependencyInjection\ContainerAwareTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -32,23 +29,24 @@ class Inertia implements InertiaInterface
     use Macroable;
 
     protected array $props = [];
+
     protected array $viewData = [];
+
     protected array $context = [];
 
     protected bool $useSsr = false;
 
     protected string $ssrUrl = '';
 
-
-    protected string|Closure|null $version = null;
+    protected string|\Closure|null $version = null;
 
     /**
      * Inertia constructor.
      */
     public function __construct(
-        protected string               $rootView,
-        protected Environment          $engine,
-        protected RequestStack         $requestStack,
+        protected string $rootView,
+        protected Environment $engine,
+        protected RequestStack $requestStack,
         protected ?SerializerInterface $serializer = null,
         protected ?Packages $package = null)
     {
@@ -57,12 +55,12 @@ class Inertia implements InertiaInterface
                 /** @var PathPackage $package */
                 $package = $this->package->getPackage();
                 if ($package instanceof Package) {
-                    $rp = new ReflectionProperty(Package::class, 'versionStrategy');
+                    $rp = new \ReflectionProperty(Package::class, 'versionStrategy');
                     $rp->setAccessible(true);
                     $strategy = $rp->getValue($package);
                     if ($strategy instanceof JsonManifestVersionStrategy) {
                         $strategy->getVersion('');
-                        $rp = new ReflectionProperty($strategy, 'manifestData');
+                        $rp = new \ReflectionProperty($strategy, 'manifestData');
                         $rp->setAccessible(true);
                         $version = md5(json_encode($rp->getValue($strategy)));
                     }
@@ -70,12 +68,13 @@ class Inertia implements InertiaInterface
                 if (empty($version)) {
                     $version = explode('?', $this->package->getVersion('build/app.js') ?: $this->package->getVersion('build/main.js'));
 
-                    if (count($version) === 1) {
+                    if (1 === count($version)) {
                         $version = md5($version[0]);
                     } else {
                         $version = array_pop($version);
                     }
                 }
+
                 return $version;
             };
         }
@@ -94,7 +93,7 @@ class Inertia implements InertiaInterface
         return $this;
     }
 
-    public function getShared(string $key = null, mixed $default = null): mixed
+    public function getShared(?string $key = null, mixed $default = null): mixed
     {
         if ($key) {
             return Arr::get($this->props, $key, $default);
@@ -130,7 +129,7 @@ class Inertia implements InertiaInterface
         return $this;
     }
 
-    public function getViewData(string $key = null, mixed $default = null): mixed
+    public function getViewData(?string $key = null, mixed $default = null): mixed
     {
         if ($key) {
             return Arr::get($this->viewData, $key, $default);
@@ -150,7 +149,7 @@ class Inertia implements InertiaInterface
         return $this;
     }
 
-    public function getContext(string $key = null, mixed $default = null): mixed
+    public function getContext(?string $key = null, mixed $default = null): mixed
     {
         if ($key) {
             return Arr::get($this->context, $key, $default);
@@ -172,7 +171,7 @@ class Inertia implements InertiaInterface
             ? call_user_func($this->version)
             : $this->version;
 
-        return (string)$version;
+        return (string) $version;
     }
 
     public function setRootView(string $rootView): void
@@ -225,7 +224,7 @@ class Inertia implements InertiaInterface
         $page = [
             'component' => $component,
             'props' => $props,
-            'url' => $request->getBaseUrl() . $request->getRequestUri(),
+            'url' => $request->getBaseUrl().$request->getRequestUri(),
             'version' => $this->getVersion(),
         ];
 
@@ -237,7 +236,6 @@ class Inertia implements InertiaInterface
         }
 
         return new Response($this->engine->render($this->rootView, $viewData + ['page' => $page, '_serialized_page' => $this->serialize($page)]));
-
     }
 
     public function isInertiaRequest(): bool
@@ -269,11 +267,11 @@ class Inertia implements InertiaInterface
 
         return new LazyProp($callback);
     }
+
     /**
      * Serializes the given objects with the given context if the Symfony Serializer is available. If not, uses `json_encode`.
      *
      * @see https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/AJAX_Security_Cheat_Sheet.md#always-return-json-with-an-object-on-the-outside
-     *
      *
      * @return string returns a json encoded string of the data, so it can safely be given to {@see JsonResponse}
      */
@@ -297,16 +295,11 @@ class Inertia implements InertiaInterface
 
     /**
      * Resolve all necessary class instances in the given props.
-     *
-     * @param array $props
-     * @param Request $request
-     * @param bool $unpackDotProps
-     * @return array
      */
     public function resolvePropertyInstances(array $props, Request $request, bool $unpackDotProps = true): array
     {
         foreach ($props as $key => $value) {
-            if ($value instanceof Closure || $value instanceof LazyProp) {
+            if ($value instanceof \Closure || $value instanceof LazyProp) {
                 $value = call_user_func($value);
             }
 

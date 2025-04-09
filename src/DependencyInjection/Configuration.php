@@ -16,22 +16,20 @@ class Configuration implements ConfigurationInterface
 {
     /**
      * Generates the configuration tree builder.
-     *
-     * @return TreeBuilder The tree builder
      */
-    public function getConfigTreeBuilder()
+    public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder('rompetomp_inertia');
         $treeBuilder->getRootNode()
             ->children()
-                ->scalarNode('root_view')->defaultValue('app.html.twig')->end()
-                ->arrayNode('ssr')
-                    ->addDefaultsIfNotSet()
-                    ->children()
-                        ->booleanNode('enabled')->defaultFalse()->end()
-                        ->scalarNode('url')->defaultValue('')->end()
-                    ->end()
-                ->end()
+            ->scalarNode('root_view')->defaultValue('app.html.twig')->end()
+            ->arrayNode('ssr')
+            ->addDefaultsIfNotSet()
+            ->children()
+            ->booleanNode('enabled')->defaultFalse()->end()
+            ->scalarNode('url')->defaultValue('')->end()
+            ->end()
+            ->end()
             ->end();
 
         return $treeBuilder;

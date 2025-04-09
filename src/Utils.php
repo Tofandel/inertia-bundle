@@ -9,7 +9,6 @@ use Symfony\Component\HttpFoundation\Request;
 
 abstract class Utils
 {
-
     public static function isInertiaRequest(?Request $request): bool
     {
         return $request?->headers?->has('X-Inertia') ?? false;
@@ -25,8 +24,8 @@ abstract class Utils
             foreach ($form->getErrors(true, true) as $error) {
                 $path = '';
                 $parent = $error->getOrigin();
-                while($parent) {
-                    $path = $parent->getName() . '.' . $path;
+                while ($parent) {
+                    $path = $parent->getName().'.'.$path;
                     $parent = $parent->getParent();
                 }
                 $path = trim($path, '.');
@@ -40,6 +39,7 @@ abstract class Utils
 
             return false;
         }
+
         return true;
     }
 }
