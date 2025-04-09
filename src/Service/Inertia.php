@@ -30,8 +30,6 @@ use Twig\Environment;
 class Inertia implements InertiaInterface
 {
     use Macroable;
-    use ContainerAwareTrait;
-
 
     protected array $props = [];
     protected array $viewData = [];
@@ -267,18 +265,6 @@ class Inertia implements InertiaInterface
     {
         if (is_string($callback)) {
             $callback = explode('::', $callback, 2);
-        }
-
-        if (is_array($callback)) {
-            [$name, $action] = array_pad($callback, 2, null);
-            $useContainer = is_string($name) && $this->container->has($name);
-            if ($useContainer && !is_null($action)) {
-                return new LazyProp([$this->container->get($name), $action]);
-            }
-
-            if ($useContainer && is_null($action)) {
-                return new LazyProp($this->container->get($name));
-            }
         }
 
         return new LazyProp($callback);
