@@ -51,7 +51,7 @@ class InertiaExtension extends AbstractExtension
             }
         }
 
-        return new Markup('<div id="app" data-page="' . htmlspecialchars($context['_serialized_page']) . '"></div>', 'UTF-8');
+        return new Markup('<div id="app" data-page="'.htmlspecialchars($context['_serialized_page']).'"></div>', 'UTF-8');
     }
 
     public function inertiaHeadFunction(array $context): Markup

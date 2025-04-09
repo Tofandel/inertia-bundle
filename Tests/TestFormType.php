@@ -23,15 +23,15 @@ class TestFormType extends AbstractType
             ])
             ->add('first_name', TextType::class, [
                 'required' => true,
-                'constraints' => [new NotBlank(), new Length(['min' => 10])],])
+                'constraints' => [new NotBlank(), new Length(['min' => 10])], ])
             ->add('emails', CollectionType::class, [
-                    // each entry in the array will be an "email" field
-                    'entry_type' => EmailType::class,
-                    'allow_add' => true, //This should do the trick.
-                    'entry_options' => [
-                        'constraints' => [new Email()]
-                    ]
-                ]
+                // each entry in the array will be an "email" field
+                'entry_type' => EmailType::class,
+                'allow_add' => true, // This should do the trick.
+                'entry_options' => [
+                    'constraints' => [new Email()],
+                ],
+            ]
             )
             ->add('phone', TextType::class, [
                 'required' => false,
@@ -39,5 +39,4 @@ class TestFormType extends AbstractType
 
         $builder->setRequestHandler(new HttpFoundationRequestHandler());
     }
-
 }

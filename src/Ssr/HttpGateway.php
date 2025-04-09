@@ -2,7 +2,6 @@
 
 namespace Rompetomp\InertiaBundle\Ssr;
 
-use Exception;
 use Rompetomp\InertiaBundle\Service\InertiaInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -31,7 +30,7 @@ class HttpGateway implements GatewayInterface
                     'body' => json_encode($page),
                 ]
             );
-        } catch (Exception) {
+        } catch (\Exception) {
             return null;
         }
 

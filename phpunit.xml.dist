@@ -1,15 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- http://phpunit.de/manual/4.1/en/appendixes.configuration.html -->
-<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.3/phpunit.xsd" backupGlobals="false" colors="true" bootstrap="vendor/autoload.php">
-  <coverage>
-    <include>
-      <directory>.</directory>
-    </include>
-    <exclude>
-      <directory>Tests</directory>
-      <directory>vendor</directory>
-    </exclude>
-  </coverage>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/12.1/phpunit.xsd" backupGlobals="false" colors="true" bootstrap="vendor/autoload.php">
   <php>
     <env name="SHELL_VERBOSITY" value="-1"/>
     <ini name="error_reporting" value="-1"/>
@@ -21,4 +12,13 @@
       <directory>Tests</directory>
     </testsuite>
   </testsuites>
+  <source>
+    <include>
+      <directory>.</directory>
+    </include>
+    <exclude>
+      <directory>Tests</directory>
+      <directory>vendor</directory>
+    </exclude>
+  </source>
 </phpunit>

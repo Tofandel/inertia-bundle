@@ -20,14 +20,14 @@ interface InertiaInterface
      */
     public function share(string|array|Arrayable $key, mixed $value = null): self;
 
-    public function getShared(string $key = null, mixed $default = null): mixed;
+    public function getShared(?string $key = null, mixed $default = null): mixed;
 
     /**
      * Adds global view data for the templating system.
      */
     public function viewData(array|string $key, mixed $value = null): self;
 
-    public function getViewData(string $key = null, mixed $default = null): mixed;
+    public function getViewData(?string $key = null, mixed $default = null): mixed;
 
     public function version(string|callable|null $version): self;
 
@@ -36,7 +36,7 @@ interface InertiaInterface
      */
     public function context(array|string $key, mixed $value = null): self;
 
-    public function getContext(string $key = null): mixed;
+    public function getContext(?string $key = null): mixed;
 
     public function getVersion(): string;
 
